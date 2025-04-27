@@ -1,122 +1,55 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-#from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship, declarative_base
-import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from api.main_router import main_router
+from fastapi.db.database import engine, Base
+import logging
 
-#Configuracion de la base de datos
-#Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://user:password@mysql:3306/mydatabase")
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocomit= False, autoflush= False, bind= engine)
-Base = declarative_base()
-
-#Modelos
-#Models
-class Planet(Base):
-    _tablename_ = "planets"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    description = Column(String)
-
-    #Relacion de uno a muchos con Satelite
-    #One-to-many relationship with Satellite
-    satellites = relationship("Satellite", back_populates="planet")
-
-class Satellite(Base):
-    _tablename_ = "satellites"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    description = Column(String)
-    planet_id = Column(Integer, ForeignKey("planets.id"))
-
-    #Relacion inversa con Planeta
-    #Reverse relationship with Planet
-    planet = relationship("Planet", back_populates="satellites")
-
-#Crear tablas
-#Create tables
+# Initialize the app
 app = FastAPI(
-    title="Planet and Satellites API",
-    root_path="/api",
-    docs_url="/docs",
+    title="Microservices API",
+    description="API for managing planets and satellites in a microservices architecture.",
+    version="1.0.0",
+    docs_url="/documentation",
     redoc_url="/redoc",
-    openapi_url="/openapi.json",
-    swagger_ui_parameters={
-        "defaultModelsExpandDepth": -1,
-        "persistAuthorization": True,
-    },
 )
 
-#Dependencia para obtener la sesion de la base de datos
-#Dependency to get DB session
-def get_db():
-    db = SessionLocal()
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Include the main router
+app.include_router(main_router)
+
+# Events
+@app.on_event("startup")
+async def startup_event():
     try:
-        yield db
-    finally:
-        db.close()
+        logger.info("Application is starting...")
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logger.error(f"Error during startup: {e}")
+        raise
 
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to my API"}
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Application is shutting down...")
 
-#CRUD for Planets
-@app.get("/planets/")
-def read_planets(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    planets = db.query(Planet).offset(skip).limit(limit).all()
-    return planets
-
-@app.post("/planets/", status_code=201)
-def create_planet(name: str, description: str = None, db: Session = Depends(get_db)):
-    planet = Planet(name=name, description=description)
-    db.add(planet)
-    db.commit()
-    db.refresh(planet)
-    return planet
-
-@app.delete("/planets/{planet_id}")
-def delete_planet(planet_id: int, db: Session = Depends(get_db)):
-    planet = db.query(Planet).filter(Planet.id == planet_id).first()
-    if planet is None:
-        raise HTTPException(status_code=404, detail="Planet not found")
-    db.delete(planet)
-    db.commit()
-    return {"message": "Planet deleted successfully"}
-
-@app.get("/planets/{planet_id}/satellites")
-def get_satellites_of_planet(planet_id: int, db: Session = Depends(get_db)):
-    planet = db.query(Planet).filter(Planet.id == planet_id).first()
-    if not planet:
-        raise HTTPException(status_code=404, detail="Planet not found")
-    return planet.satellites
-
-#CRUD for satellite
-@app.post("/planets/{planet_id}/satellites/", status_code=201)
-def create_satellite(planet_id: int, name: str, description: str = None, db: Session = Depends(get_db)):
-    planet = db.query(Planet).filter(Planet.id == planet_id).first()
-    if not planet:
-        raise HTTPException(status_code=404, detail="Planet not found")
-    satellite = Satellite(name=name, description=description, planet_id=planet_id)
-    db.add(satellite)
-    db.commit()
-    db.refresh(satellite)
-    return satellite
-
-@app.get("/satellites/{satellite_id}")
-def read_satellite(satellite_id: int, db: Session = Depends(get_db)):
-    satellite = db.query(Satellite).filter(Satellite.id == satellite_id).first()
-    if satellite is None:
-        raise HTTPException(status_code=404, detail="Satellite not found")
-    return satellite
-
-@app.delete("/satellites/{satellite_id}")
-def delete_satellite(satellite_id: int, db: Session = Depends(get_db)):
-    satellite = db.query(Satellite).filter(Satellite.id == satellite_id).first()
-    if satellite is None:
-        raise HTTPException(status_code=404, detail="Satellite not found")
-    db.delete(satellite)
-    db.commit()
-    return {"message": "Satellite deleted successfully"}
+# Health check endpoint
+@app.get("/health", tags=["Health"])
+def health_check():
+    try:
+        # Verifica la conexión a la base de datos
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        return {"status": "ok", "database": "connected"}
+    except Exception:
+        return {"status": "error", "database": "disconnected"}
