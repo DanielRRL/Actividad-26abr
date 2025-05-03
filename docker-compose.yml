@@ -82,6 +82,9 @@ services:
 networks:
   eam-elecitva-balancer:
     driver: bridge
+  app-elecitva-balancer:  
+    driver: bridge
+
 
 volumes:
   mysql_data:
