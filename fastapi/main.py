@@ -53,3 +53,6 @@ def health_check():
         return {"status": "ok", "database": "connected"}
     except Exception:
         return {"status": "error", "database": "disconnected"}
+
+
+# lol
