@@ -32,7 +32,7 @@ services:
 
   adminer:
     image: adminer:latest
-    container_name: adminer
+    container_name: adminer_ivanDRR
     restart: always
     ports:
       - "8081:8080"
