@@ -14,7 +14,7 @@ services:
     networks:
       - eam-elecitva-balancer
 
-  mysql:
+  ivanDRR-mysql:
     image: mysql:8.0
     container_name: ivanDRR-mysql
     restart: unless-stopped
@@ -30,9 +30,9 @@ services:
     labels:
       - "traefik.enable=false"
 
-  adminer:
+  ivanDRR-adminer:
     image: adminer:latest
-    container_name: adminer_ivanDRR
+    container_name: adminer-ivanDRR
     restart: always
     ports:
       - "8081:8080"
