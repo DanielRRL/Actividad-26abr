@@ -16,7 +16,7 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: mysql
+    container_name: ivanDRR-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword  
