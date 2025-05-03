@@ -14,7 +14,7 @@ services:
     networks:
       - eam-elecitva-balancer
 
-  ivanDRR-mysql:
+  mysql:
     image: mysql:8.0
     container_name: ivanDRR-mysql
     restart: unless-stopped
@@ -30,7 +30,7 @@ services:
     labels:
       - "traefik.enable=false"
 
-  ivanDRR-adminer:
+  adminer:
     image: adminer:latest
     container_name: adminer-ivanDRR
     restart: always
